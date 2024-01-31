@@ -18,6 +18,15 @@ export class MessageEntity extends AbstractEntity {
       throw new Error("Email must have an id to be converted to a message");
     }
 
-    return new MessageEntity(senderId, threadId, email.id!, email.body, email.date);
+    return new MessageEntity(senderId, threadId, email.id!, this.removeHtmlTags(email.body), email.date);
+  }
+  
+  /* removes html tags from the body of the email */
+  private static removeHtmlTags(body: string): string {
+    return body
+      // uncomment if we want newlines for display purposes 
+      // .replace(/<br[ ]*\/>/, "\n")
+      // .replace(/<\/p>/, "\n</p>")
+      .replace(/<[^>]*>?/gm, "");
   }
 }
