@@ -81,10 +81,25 @@ Theorically, you should compare the `inReplyTo` property with the `universalMess
 Concretely, when running `yarn start`, the console should display messages grouped by threads, whereas currently they are all grouped into the same default thread.
 
 **Hint: The email API does not return items in a specific order. However, it may be necessary to process emails chronologically.**
-
+ 
 ### Task 2: Take messages stored in database into account
 
 Explain what would be needed, step by step, to take messages stored in the database into account when grouping messages by threads. You can write your answer in the `README.md` file. What parts of the code would you need to modify?
+
+#### Task 2: Answer
+
+This will work only under the asuption that we can rely on chain of emails, and doesn't not discriminate threads by subject as it doesn't seems to be in the scope. 
+
+- Extend the ThreadEntity adding a `participants` field with their emails
+- Group messages fetched as we did for task 1
+- use the oldest message's `universalMessageId` to find if an existing thread exists, otherwise we create a new one
+- depending on the reliability of the order of emails between batches, we may need to find Threads using all participants emails to find a thread
+
+On some cases, it could happen that more threads match the query. This could be specially true if there is a possibily that some messages could have a bigger delay than others, if that's the case
+
+- add a `hasLead` value to Threads, this will help us identify if we found the starting email for the thread
+- if a thread don't have a lead, we can assume we have a missing message and we need to be ready to merge it with other threads as soon as we get the connecting email
+
 
 ### Task 3: Remove HTML tags from messages
 
