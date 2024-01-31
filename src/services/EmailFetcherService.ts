@@ -3,7 +3,8 @@ import { EmailEntity } from "../model/entities/EmailEntity";
 import { Contact } from "../model/value-objects/Contact";
 import { ContactList } from "../model/value-objects/ContactList";
 
-type EmailResponse = {
+/* should be moved to separate file */
+export type EmailResponse = {
   id: string;
   universal_message_id: string;
   in_reply_to: string | null;
