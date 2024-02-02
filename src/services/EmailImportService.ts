@@ -17,14 +17,12 @@ export class EmailImportService {
   ) {}
 
   public async import(): Promise<void> {
-    const fetchedEmails = await this.retrieveAndPersistEmails();
-    const emailThreads = this.groupEmailThreads(fetchedEmails);
-    let operations: Promise<MessageEntity>[] = [];
-    for (const emailThread of emailThreads) {
-      const thread = await this.createNamedThread(emailThread[0].subject);
-      operations = operations.concat(emailThread.map((email) => this.createMessageFromEmail(email, thread)));
-    }
-    const messages = await Promise.all(operations);
+    const fetchedEmails = await this.retrieveAndPersistEmails()
+      .then(emails => emails.sort((a, b) => a.date.getTime() - b.date.getTime()));
+    const emailThreads = fetchedEmails.reduce(this.addReplyToGroup, []);
+    const messages = await Promise.all(
+      emailThreads.flatMap(emails => this.assignThreadToEmail(emails))
+    );
     await this.messageRepository.persist(messages);
   }
 
@@ -33,32 +31,20 @@ export class EmailImportService {
     await this.emailRepository.persist(fetchedEmails);
     return fetchedEmails;
   }
-  /**
-   * Groups an array of emails by threads
-   * This should also group emails in the case that the many people reply to the same email
-   */
-  private groupEmailThreads(emails: EmailEntity[]): EmailEntity[][] {
-    emails = emails.sort((a, b) => a.date.getTime() - b.date.getTime());
-    const groupByLead: { [key: string]: EmailEntity[] } = {};
-    const groups: EmailEntity[][] = [];
-    for (const email of emails) {
-      const inReplyTo = email.inReplyTo?.email.toString();
-      const universalMessageId = email.universalMessageId?.email.toString();
-      let group = inReplyTo ? groupByLead[inReplyTo] : null;
-      if (!group) {
-        group = [];
-        groups.push(group);
-      }
-      group.push(email);
-      groupByLead[universalMessageId] = group;
+
+  private addReplyToGroup(groups: EmailEntity[][], email: EmailEntity): EmailEntity[][] {
+    const inReplyTo = email.inReplyTo?.email.toString();
+    if (inReplyTo) {
+      groups.find(group => group.at(-1)?.universalMessageId?.toString() === inReplyTo)?.push(email);
+    } else {
+      groups.push([email]);
     }
     return groups;
   }
 
-  private async createDefaultThread() {
-    const singleThread = new ThreadEntity("Default Thread");
-    await this.threadRepository.persist([singleThread]);
-    return singleThread;
+  private assignThreadToEmail(emails: EmailEntity[]): Promise<MessageEntity>[] {
+    const threadPromise = this.createNamedThread(emails[0].subject);
+    return emails.map(email => threadPromise.then(thread => this.createMessageFromEmail(email, thread)));
   }
 
   private async createNamedThread(name: string) {
